@@ -13,6 +13,7 @@ import com.ning.http.client.{
   HttpResponseBodyPart,
   HttpResponseHeaders,
   HttpResponseStatus,
+  Part,
   Response => AHCResponse
 }
 
@@ -298,6 +299,12 @@ object WS {
      */
     def post[T](body: T)(implicit wrt: Writeable[T], ct: ContentTypeOf[T]): Promise[Response] = prepare("POST", body).execute
 
+
+    /**
+     * performs a MultiPart POST with supplied body parts.
+     */
+    def post(body: List[Part]): Promise[Response] = prepare("POST", body).execute
+
     /**
      * performs a POST with supplied body
      * @param consumer that's handling the response
@@ -305,15 +312,34 @@ object WS {
     def postAndRetrieveStream[A, T](body: T)(consumer: ResponseHeaders => Iteratee[Array[Byte], A])(implicit wrt: Writeable[T], ct: ContentTypeOf[T]): Promise[Iteratee[Array[Byte], A]] = prepare("POST", body).executeStream(consumer)
 
     /**
+     * performs a MultiPart POST with supplied body parts.
+     * @param consumer that's handling the response
+     */
+    def postAndRetrieveStream[A](body: List[Part])(consumer: ResponseHeaders => Iteratee[Array[Byte], A]): Promise[Iteratee[Array[Byte], A]] = prepare("POST", body).executeStream(consumer)
+
+    /**
      * Perform a PUT on the request asynchronously.
      */
     def put[T](body: T)(implicit wrt: Writeable[T], ct: ContentTypeOf[T]): Promise[Response] = prepare("PUT", body).execute
+
+
+    /**
+     * performs a MultiPart PUT with supplied body parts.
+     */
+    def put(body: List[Part]): Promise[Response] = prepare("PUT", body).execute
 
     /**
      * performs a PUT with supplied body
      * @param consumer that's handling the response
      */
     def putAndRetrieveStream[A, T](body: T)(consumer: ResponseHeaders => Iteratee[Array[Byte], A])(implicit wrt: Writeable[T], ct: ContentTypeOf[T]): Promise[Iteratee[Array[Byte], A]] = prepare("PUT", body).executeStream(consumer)
+
+
+    /**
+     * performs a MultiPart PUT with supplied body parts.
+     * @param consumer that's handling the response
+     */
+    def putAndRetrieveStream[A](body: List[Part])(consumer: ResponseHeaders => Iteratee[Array[Byte], A]): Promise[Iteratee[Array[Byte], A]] = prepare("PUT", body).executeStream(consumer)
 
     /**
      * Perform a DELETE on the request asynchronously.
@@ -340,6 +366,14 @@ object WS {
         .setHeaders(Map("Content-Type" -> Seq(ct.mimeType.getOrElse("text/plain"))) ++ headers)
         .setQueryString(queryString)
         .setBody(wrt.transform(body))
+
+    private def prepare(method: String, body: List[Part]) = {
+      val wsr = new WSRequest(method, auth, calc).setUrl(url)
+        .setHeaders(Map("Content-Type" -> Seq("multipart/form-data")) ++ headers)
+        .setQueryString(queryString)
+      body.foreach(wsr.addBodyPart(_))
+      wsr
+    }
 
   }
 }
